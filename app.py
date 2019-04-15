@@ -79,15 +79,16 @@ def process_message(message):
         # if message valid
 
         # get image url
-        image_url = message.message_create.message_data.attachment.media.media_url_https
+        # image_url = message.message_create.message_data.attachment.media.media_url_https
 
         # process image and get response from tf model
-        prediction_list = tf_connect.tf_request(TF_SERVER_URL, image_url, AUTH)
-        reply_string = tf_connect.process_output(prediction_list)
-
+        # prediction_list = tf_connect.tf_request(TF_SERVER_URL, image_url, AUTH)
+        # reply_string = tf_connect.process_output(prediction_list)
+        reply_string = "Hi I am summitbot, I am not ready yet"
         # reply to the message
         reply_json = generate_message_response(message.message_create.sender_id, reply_string)
         response = CLIENT.api.direct_messages.events.new.post(_json=reply_json)
+        print(response)
         return response
     return "Invalid message"
 
