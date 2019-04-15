@@ -28,6 +28,7 @@ AUTH = OAuth1(
 )
 
 TF_SERVER_URL = Configuration.TF_SERVER_URL
+loop = asyncio.get_event_loop()
 
 
 def generate_message_response(to_user_id, message_string: str):
@@ -96,6 +97,7 @@ def process_message(message):
 @app.route("/webhook", methods=["POST"])
 def twitter_event_received():
     event_json = request.get_json()
+    print(event_json)
     if "direct_message_events" in event_json.keys():
         for message in event_json.direct_message_events:
             process_message(message)
@@ -127,5 +129,5 @@ def twitter_event_received():
 
 
 if __name__ == "__main__":
+    loop.run_until_complete(getting_started())
     app.run(host="0.0.0.0", debug=True, port=8080)
-    # loop.run_until_complete(getting_started())
