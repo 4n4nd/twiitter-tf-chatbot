@@ -75,7 +75,7 @@ async def getting_started():
 
 def process_message(message):
     print(message)
-    if message.type == "message_create":  # validate message here !!!! Add better validation
+    if message["type"] == "message_create":  # validate message here !!!! Add better validation
         print("new message received")
         # if message valid
 
@@ -87,7 +87,7 @@ def process_message(message):
         # reply_string = tf_connect.process_output(prediction_list)
         reply_string = "Hi I am summitbot, I am not ready yet"
         # reply to the message
-        reply_json = generate_message_response(message.message_create.sender_id, reply_string)
+        reply_json = generate_message_response(message["message_create"]["sender_id"], reply_string)
         response = CLIENT.api.direct_messages.events.new.post(_json=reply_json)
         print(response)
         return response
@@ -99,7 +99,7 @@ def twitter_event_received():
     event_json = request.get_json()
     print(event_json)
     if "direct_message_events" in event_json.keys():
-        for message in event_json.direct_message_events:
+        for message in event_json["direct_message_events"]:
             process_message(message)
 
     return ("", HTTPStatus.OK)
