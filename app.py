@@ -99,8 +99,8 @@ def twitter_event_received():
     event_json = request.get_json()
     print(event_json)
     if "direct_message_events" in event_json.keys():
-        for message in event_json["direct_message_events"]:
-            process_message(message)
+        async for message in event_json["direct_message_events"]:
+            await process_message(message)
 
     return ("", HTTPStatus.OK)
 
