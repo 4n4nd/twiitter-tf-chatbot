@@ -73,7 +73,7 @@ async def getting_started():
     return str(user.screen_name)
 
 
-def process_message(message):
+async def process_message(message):
     print(message)
     if message["type"] == "message_create":  # validate message here !!!! Add better validation
         print("new message received")
@@ -88,7 +88,7 @@ def process_message(message):
         reply_string = "Hi I am summitbot, I am not ready yet"
         # reply to the message
         reply_json = generate_message_response(message["message_create"]["sender_id"], reply_string)
-        response = CLIENT.api.direct_messages.events.new.post(_json=reply_json)
+        response = await CLIENT.api.direct_messages.events.new.post(_json=reply_json)
         print(response)
         return response
     return "Invalid message"
