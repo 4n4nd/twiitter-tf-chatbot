@@ -28,6 +28,9 @@ AUTH = OAuth1(
 )
 
 TF_SERVER_URL = Configuration.TF_SERVER_URL
+
+CURRENT_USER_ID = None
+
 loop = asyncio.get_event_loop()
 
 
@@ -47,7 +50,7 @@ def generate_message_response(to_user_id, message_string: str):
 @app.route("/")
 def default_page():
 
-    return "default page"
+    return "{0}".format(CURRENT_USER_ID)
 
 
 @app.route("/webhook", methods=["GET"])
@@ -70,12 +73,18 @@ async def getting_started():
     """This is just a demo of an async API call."""
     user = await CLIENT.user
     print("I am @{0}".format(user.screen_name))
-    return str(user.screen_name)
+    return user
 
 
 async def process_message(message):
     print(message)
-    if message["type"] == "message_create":  # validate message here !!!! Add better validation
+    if (
+        message["type"] == "message_create"  # Check if new message
+        and str(message["message_create"]["sender_id"])
+        != CURRENT_USER_ID  # Check if its your own message
+    ):
+        print("sender_id: {0}".format(str(message["message_create"]["sender_id"])))
+        print("My id: {0}".format(CURRENT_USER_ID))
         print("new message received")
         # if message valid
 
@@ -129,5 +138,6 @@ def twitter_event_received():
 
 
 if __name__ == "__main__":
-    loop.run_until_complete(getting_started())
+    CURRENT_USER_ID = loop.run_until_complete(getting_started())["id_str"]
+    print(CURRENT_USER_ID)
     app.run(host="0.0.0.0", debug=True, port=8080)
