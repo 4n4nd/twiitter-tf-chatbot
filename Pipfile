@@ -13,6 +13,7 @@ pillow = "*"
 requests_oauthlib = "*"
 flask = "*"
 TwitterAPI = "*"
+tornado = "*"
 
 [dev-packages]
 pylint = "*"
