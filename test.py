@@ -1,4 +1,6 @@
 import asyncio
+import os
+import logging
 import tornado.ioloop
 import tornado.web
 import tornado
@@ -8,7 +10,15 @@ from peony import PeonyClient
 import tf_connect
 from configuration import Configuration
 
+# Set up logging
+_LOGGER = logging.getLogger(__name__)
 
+if os.getenv("FLT_DEBUG_MODE", "False") == "True":
+    logging_level = logging.DEBUG  # Enable Debug mode
+else:
+    logging_level = logging.INFO
+# Log record format
+logging.basicConfig(format="%(asctime)s:%(levelname)s: %(message)s", level=logging_level)
 # create the client using the api keys
 CLIENT = PeonyClient(
     consumer_key=Configuration.CONSUMER_KEY,
@@ -30,23 +40,21 @@ CURRENT_USER_ID = None
 loop = asyncio.get_event_loop()
 
 
-def generate_message_response(to_user_id, message_string: str):
-    message_response = {
-        "event": {
-            "type": "message_create",
-            "message_create": {
-                "target": {"recipient_id": to_user_id},
-                "message_data": {"text": "{0}".format(str(message_string))},
-            },
-        }
-    }
-    return message_response
+async def post_tweet_reply(to_tweet_id, reply_string):
+    """ Post a reply to the specified tweet """
+    if reply_string:
+        post_response = await CLIENT.api.statuses.update.post(
+            status=str(reply_string),
+            in_reply_to_status_id=to_tweet_id,
+            auto_populate_reply_metadata="true",
+        )
+        _LOGGER.debug("Response: %s", str(post_response))
 
 
 async def getting_started():
     """This is just a demo of an async API call."""
     user = await CLIENT.user
-    print("I am @{0}".format(user.screen_name))
+    _LOGGER.info("I am @{0}".format(user.screen_name))
     return user
 
 
@@ -55,61 +63,44 @@ class MainHandler(tornado.web.RequestHandler):
         self.write("Hello, world")
 
     async def post(self):
-        message = tornado.escape.json_decode(self.request.body)
-        reply_string = (
-            "Hi I am fedorafinderbot, send me a picture to to check if there is a red fedora in it."
-        )
-        print(message)
-        print(type(message))
-        print(message.keys())
-        print(message["message_create"])
-        print(message["message_create"]["message_data"])
-        print(message["message_create"]["sender_id"])
-
-        print(message["type"])
+        tweet = tornado.escape.json_decode(self.request.body)
+        reply_string = "Invalid tweet"
+        user_mentions_list = []
+        try:
+            for user_mention in tweet["entities"]["user_mentions"]:
+                user_mentions_list.append(user_mention["id_str"])
+        except KeyError as excep:
+            _LOGGER.error("Tweet did not mention me")
+            raise
 
         if (
-            message["type"] == "message_create"  # Check if new message
-            and str(message["message_create"]["sender_id"])
-            != CURRENT_USER_ID  # Check if its your own message
+            CURRENT_USER_ID in user_mentions_list  # check if user was mentioned
+            and tweet["user"]["id_str"] != CURRENT_USER_ID  # check if it our own tweet
+            and "retweeted_status" not in tweet  # check if it was a retweet
         ):
-            sender_id = str(message["message_create"]["sender_id"])
-            print("sender_id: {0}".format(sender_id))
-            print("My id: {0}".format(CURRENT_USER_ID))
-            message = message["message_create"]["message_data"]
-            # Check if an image is present in the message
 
-            # message_data
-            if "attachment" in message.keys():
-                try:
-                    if message["attachment"]["media"]["type"] == "photo":
-                        image_url = message["attachment"]["media"]["media_url_https"]
+            _LOGGER.info("Tweet received from user: %s", tweet["user"]["screen_name"])
+            tweet_id = tweet["id_str"]
 
-                        # process image and get response from tf model
-                        prediction_list = tf_connect.tf_request(TF_SERVER_URL, image_url, AUTH)
-                        reply_string = tf_connect.process_output(prediction_list)
+            if "media" in tweet["entities"] and tweet["entities"]["media"][0]["type"] == "photo":
+                image_url = tweet["entities"]["media"][0]["media_url_https"]
 
-                except KeyError:
-                    print("No images found")
+                # process image and get response from tf model
+                prediction_list = tf_connect.tf_request(TF_SERVER_URL, image_url, AUTH)
+                reply_string = tf_connect.process_output(prediction_list)
 
-            # get image url
-            # image_url = message.message_create.message_data.attachment.media.media_url_https
-
-            # reply to the message
-            reply_json = generate_message_response(sender_id, reply_string)
-            response = await CLIENT.api.direct_messages.events.new.post(_json=reply_json)
-            print(response)
-
+                await post_tweet_reply(tweet_id, reply_string)
         self.write(reply_string)
 
 
 def make_app():
+    _LOGGER.info("Initializing Tornado Web App")
     return tornado.web.Application([(r"/", MainHandler)])
 
 
 if __name__ == "__main__":
     CURRENT_USER_ID = loop.run_until_complete(getting_started())["id_str"]
-    print(CURRENT_USER_ID)
+    _LOGGER.info("My user id: %s", CURRENT_USER_ID)
     app = make_app()
     app.listen(8080)
     tornado.ioloop.IOLoop.current().start()
