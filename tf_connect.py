@@ -49,12 +49,11 @@ def tf_request(server_url, image_url, auth=None, image_resolution: tuple = (320,
 def process_output(prediction_list: list):
     """
     prediction_list = [is_fedora, is_not_fedora]
-    so index 0 is true and index 1 is false
+    so index 1 is true and index 0 is false
     """
     # find the index with the highest value of likelihood
     max_index = prediction_list.index(max(prediction_list))
-
-    is_fedora = not bool(max_index)
+    is_fedora = bool(max_index)
 
     if is_fedora:
         return "I found a Red Hat Fedora!"
