@@ -1,3 +1,4 @@
+import logging
 import requests
 import numpy as np
 from PIL import Image
@@ -6,18 +7,23 @@ from io import BytesIO
 from configuration import Configuration
 import tf_connect
 
+# Set up logging
+_LOGGER = logging.getLogger(__name__)
+
 
 def create_request(array):
     return '{"instances": %s}' % array
 
 
 def image_downloader(image_url, auth=None):
+    _LOGGER.debug("Downloading image from url: %s", image_url)
     response = requests.get(image_url, auth=auth)
     pil_image = Image.open(BytesIO(response.content))
     return pil_image
 
 
 def image_to_array(pil_image, shape=None):
+    _LOGGER.debug("Converting Image to np array")
     img_array = np.array(pil_image)
     if shape:
         img_array = img_array.reshape(shape)
@@ -36,6 +42,7 @@ def tf_request(server_url, image_url, auth=None, image_resolution: tuple = (320,
     new_request = create_request(str(image_array))
 
     # Post the request to the tensorflow serving api
+    _LOGGER.debug("Sending request to tensorflow model serving host (url: %s)", server_url)
     response = requests.post(server_url, new_request)
     response.raise_for_status()
 
